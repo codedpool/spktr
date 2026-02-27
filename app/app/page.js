@@ -1,19 +1,41 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-
 export default function Overlay() {
-  const [visible, setVisible] = useState(true)
-
   return (
-    <main className="flex min-h-screen items-center justify-center bg-transparent">
-      <div className="w-[460px] rounded-2xl bg-zinc-900/90 backdrop-blur-md border border-zinc-700 p-6 shadow-2xl">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-zinc-400 text-sm font-medium">Spktr is watching</span>
+    <main
+      style={{ background: 'transparent' }}
+      className="flex min-h-screen items-end justify-end p-6"
+    >
+      <div
+        style={{
+          background: 'rgba(24, 24, 27, 0.92)',
+          border: '1px solid rgba(63, 63, 70, 0.8)',
+          borderRadius: '16px',
+          padding: '20px 24px',
+          backdropFilter: 'blur(12px)',
+          boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+          width: '460px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <div
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#4ade80',
+            }}
+          />
+          <span style={{ color: '#a1a1aa', fontSize: '13px', fontWeight: 500 }}>
+            Spktr is watching
+          </span>
         </div>
-        <p className="text-white text-lg font-semibold">Press Alt+Space to toggle</p>
-        <p className="text-zinc-500 text-sm mt-1">Phase 1 — Overlay shell working ✓</p>
+        <p style={{ color: '#ffffff', fontSize: '16px', fontWeight: 600, margin: 0 }}>
+          Press Ctrl+Shift+Space to toggle
+        </p>
+        <p style={{ color: '#52525b', fontSize: '13px', marginTop: '4px', margin: '4px 0 0 0' }}>
+          Phase 1 — Overlay shell working ✓
+        </p>
       </div>
     </main>
   )
