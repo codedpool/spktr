@@ -1,3 +1,5 @@
+use base64::{engine::general_purpose, Engine as _};
+use std::fs;
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
@@ -17,10 +19,25 @@ fn toggle_overlay(app: tauri::AppHandle) {
     }
 }
 
+#[tauri::command]
+fn read_screenshot_as_base64(path: String) -> Result<String, String> {
+    let bytes = fs::read(&path).map_err(|e| e.to_string())?;
+    let b64 = general_purpose::STANDARD.encode(&bytes);
+    let _ = fs::remove_file(&path);
+    Ok(b64)
+}
+
+#[tauri::command]
+fn set_clickable(app: tauri::AppHandle, clickable: bool) {
+    let window = app.get_webview_window("overlay").unwrap();
+    window.set_ignore_cursor_events(!clickable).unwrap();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_screenshots::init())
         .setup(|app| {
             // ── Global shortcut ──────────────────────────────────────
             let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
@@ -44,9 +61,9 @@ pub fn run() {
 
             app.global_shortcut().register(shortcut)?;
 
-            // ── Click-through on transparent areas ───────────────────
-            let window = app.get_webview_window("overlay").unwrap();
-            window.set_ignore_cursor_events(true)?;
+            // ── Click-through DISABLED for dev/debug ─────────────────
+            // We enable it back via set_clickable(false) from JS
+            // window.set_ignore_cursor_events(true)?;
 
             // ── System Tray ──────────────────────────────────────────
             let toggle_i = MenuItem::with_id(app, "toggle", "Show / Hide", true, None::<&str>)?;
@@ -96,7 +113,11 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![toggle_overlay])
+        .invoke_handler(tauri::generate_handler![
+            toggle_overlay,
+            read_screenshot_as_base64,
+            set_clickable
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Spktr");
 }
