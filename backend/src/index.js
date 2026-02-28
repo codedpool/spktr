@@ -9,6 +9,7 @@ const AIProvider = require('./services/AIProvider')
 const configRoutes = require('./routes/config')
 const providerRoutes = require('./routes/providers')
 const askRoutes = require('./routes/ask')
+const historyRoutes = require('./routes/history')
 
 const app = express()
 const server = http.createServer(app)
@@ -30,6 +31,7 @@ global.previousScreenshot = null
 app.use('/config', configRoutes)
 app.use('/providers', providerRoutes)
 app.use('/ask', askRoutes)
+app.use('/history', historyRoutes)
 
 // Health check
 app.get('/ping', (req, res) => {

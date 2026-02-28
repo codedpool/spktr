@@ -1,4 +1,3 @@
-// app/components/AskBar.jsx
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
@@ -9,13 +8,16 @@ export default function AskBar({ visible }) {
   const [query, setQuery] = useState('')
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
+  const [recent, setRecent] = useState([])
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
+  // scroll chat to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  // focus handler for global shortcut
   useEffect(() => {
     function handleFocus() {
       if (visible) {
@@ -24,6 +26,25 @@ export default function AskBar({ visible }) {
     }
     window.addEventListener('spktr-focus-askbar', handleFocus)
     return () => window.removeEventListener('spktr-focus-askbar', handleFocus)
+  }, [visible])
+
+  // fetch recent questions when AskBar becomes visible
+  useEffect(() => {
+    if (!visible) return
+
+    async function fetchHistory() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/history?limit=5`)
+        const data = await res.json()
+        if (data.items) {
+          setRecent(data.items)
+        }
+      } catch (err) {
+        console.error('[AskBar] history error:', err)
+      }
+    }
+
+    fetchHistory()
   }, [visible])
 
   if (!visible) return null
@@ -50,6 +71,15 @@ export default function AskBar({ visible }) {
           text: data.answer || `Error: ${data.error}`,
         },
       ])
+
+      // refresh recent after a new question
+      try {
+        const histRes = await fetch(`${BACKEND_URL}/history?limit=5`)
+        const histData = await histRes.json()
+        if (histData.items) setRecent(histData.items)
+      } catch (e) {
+        console.error('[AskBar] history refresh error:', e)
+      }
     } catch (err) {
       setMessages(prev => [
         ...prev,
@@ -67,10 +97,17 @@ export default function AskBar({ visible }) {
     }
   }
 
+  function handleClickRecent(text) {
+    setQuery(text)
+    inputRef.current?.focus()
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', marginTop: '14px', gap: '8px' }}>
+      {/* Divider */}
       <div style={{ height: '1px', background: 'rgba(63,63,70,0.6)' }} />
 
+      {/* Chat messages */}
       {messages.length > 0 && (
         <div
           style={{
@@ -78,7 +115,7 @@ export default function AskBar({ visible }) {
             flexDirection: 'column',
             gap: '6px',
             overflowY: 'auto',
-            maxHeight: '240px',
+            maxHeight: '220px',
             paddingRight: '2px',
           }}
         >
@@ -124,6 +161,7 @@ export default function AskBar({ visible }) {
         </div>
       )}
 
+      {/* Input row */}
       <div style={{ display: 'flex', gap: '6px' }}>
         <input
           ref={inputRef}
@@ -163,6 +201,58 @@ export default function AskBar({ visible }) {
           {loading ? '…' : 'Ask'}
         </button>
       </div>
+
+      {/* Recent questions */}
+      {recent.length > 0 && (
+        <div
+          style={{
+            marginTop: '4px',
+            borderTop: '1px solid rgba(63,63,70,0.6)',
+            paddingTop: '6px',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '11px',
+              color: '#a1a1aa',
+              marginBottom: '4px',
+            }}
+          >
+            Recent questions
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              maxHeight: '90px',
+              overflowY: 'auto',
+            }}
+          >
+            {recent.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleClickRecent(item.question)}
+                style={{
+                  textAlign: 'left',
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '4px 0',
+                  fontSize: '11px',
+                  color: '#e4e4e7',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                }}
+                title={item.question}
+              >
+                • {item.question}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

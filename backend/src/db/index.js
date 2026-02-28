@@ -40,6 +40,19 @@ db.exec(`
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (interaction_id) REFERENCES interactions(id)
   );
+
+  -- Phase 5: log vision Q&A
+  CREATE TABLE IF NOT EXISTS vision_queries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    used_screenshot INTEGER NOT NULL DEFAULT 0,
+    provider TEXT,
+    model TEXT,
+    screenshot_id INTEGER,
+    FOREIGN KEY (screenshot_id) REFERENCES screenshots(id)
+  );
 `)
 
 console.log(`[db] SQLite initialized at ${DB_PATH}`)
