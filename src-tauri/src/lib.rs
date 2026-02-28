@@ -4,7 +4,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Emitter, Manager,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -39,7 +39,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_screenshots::init())
         .setup(|app| {
-            // ── Global shortcut ──────────────────────────────────────
+            // ── Global shortcut: Ctrl+Shift+Space ───────────────────
             let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
             let shortcut_clone = shortcut.clone();
 
@@ -54,16 +54,15 @@ pub fn run() {
                                 window.show().unwrap();
                                 window.set_focus().unwrap();
                             }
+
+                            // notify frontend: toggle interactive + focus AskBar
+                            let _ = app.emit("spktr-toggle-interactive", ());
                         }
                     })
                     .build(),
             )?;
 
             app.global_shortcut().register(shortcut)?;
-
-            // ── Click-through DISABLED for dev/debug ─────────────────
-            // We enable it back via set_clickable(false) from JS
-            // window.set_ignore_cursor_events(true)?;
 
             // ── System Tray ──────────────────────────────────────────
             let toggle_i = MenuItem::with_id(app, "toggle", "Show / Hide", true, None::<&str>)?;

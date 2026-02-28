@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { getScreenshotableMonitors, getMonitorScreenshot } from 'tauri-plugin-screenshots-api'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
+import AskBar from '../components/AskBar'
 
 const BACKEND_URL = 'http://localhost:3001'
 const POLL_INTERVAL = 7000
@@ -36,10 +38,15 @@ export default function Overlay() {
     }
   }
 
-  const toggleInteractive = async () => {
-    const next = !interactive
+  const setInteractiveAndClickable = async (next) => {
     setInteractive(next)
     await invoke('set_clickable', { clickable: next })
+  }
+
+  // OLD behavior: button controls interactive + click-through
+  const toggleInteractive = async () => {
+    const next = !interactive
+    await setInteractiveAndClickable(next)
   }
 
   useEffect(() => {
@@ -60,6 +67,20 @@ export default function Overlay() {
     }
   }, [])
 
+  // Global shortcut: ONLY focus AskBar, do NOT change interactive
+  useEffect(() => {
+    let unlisten
+    listen('spktr-toggle-interactive', () => {
+      window.dispatchEvent(new Event('spktr-focus-askbar'))
+    }).then((fn) => {
+      unlisten = fn
+    })
+
+    return () => {
+      if (unlisten) unlisten()
+    }
+  }, [])
+
   return (
     <main style={{ background: 'transparent' }} className="flex min-h-screen items-end justify-end p-6">
       <div
@@ -76,17 +97,19 @@ export default function Overlay() {
         {/* Header row */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: '8px', height: '8px', borderRadius: '50%',
-              background: '#4ade80',
-              boxShadow: '0 0 6px #4ade80'
-            }} />
-            <span style={{ color: '#a1a1aa', fontSize: '13px', fontWeight: 500 }}>
-              {status}
-            </span>
+            <div
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#4ade80',
+                boxShadow: '0 0 6px #4ade80',
+              }}
+            />
+            <span style={{ color: '#a1a1aa', fontSize: '13px', fontWeight: 500 }}>{status}</span>
           </div>
 
-          {/* 🔑 Interactive toggle button */}
+          {/* Interactive toggle button – same behavior as before */}
           <button
             onClick={toggleInteractive}
             style={{
@@ -105,12 +128,13 @@ export default function Overlay() {
           </button>
         </div>
 
-        <p style={{ color: '#ffffff', fontSize: '16px', fontWeight: 600, margin: 0 }}>
-          Spktr is watching
-        </p>
+        <p style={{ color: '#ffffff', fontSize: '16px', fontWeight: 600, margin: 0 }}>Spktr is watching</p>
         <p style={{ color: '#52525b', fontSize: '13px', margin: '4px 0 0 0' }}>
-          Phase 2 — Screen capture pipeline {lastCapture ? '✓' : '...'}
+          Phase 4 — Vision AI active {lastCapture ? '✓' : '...'}
         </p>
+
+        {/* AskBar only when interactive, like before */}
+        <AskBar visible={interactive} />
       </div>
     </main>
   )
