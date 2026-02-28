@@ -5,7 +5,11 @@ const SPKTR_SYSTEM_PROMPT = require('../prompts/spktrSystem')
 
 router.post('/', async (req, res) => {
   try {
-    const { query, includeScreenshot = true } = req.body
+    const {
+      query,
+      includeScreenshot = true,
+      useHistory = true,
+    } = req.body
 
     if (!query || query.trim() === '') {
       return res.status(400).json({ error: 'query is required' })
@@ -19,12 +23,53 @@ router.post('/', async (req, res) => {
 
     const hasScreenshot = includeScreenshot && global.latestScreenshot?.base64
 
-    const content = [
-      {
+    // ── Phase 6: fetch recent context ─────────────────────────────
+    let contextText = ''
+    if (useHistory) {
+      try {
+        const recent = db
+          .prepare(
+            `
+            SELECT id, created_at, question, answer
+            FROM vision_queries
+            WHERE created_at >= datetime('now', '-30 minutes')
+            ORDER BY id DESC
+            LIMIT 5
+          `,
+          )
+          .all()
+
+        if (recent.length > 0) {
+          const lines = recent.map((row, idx) => {
+            const shortAns =
+              row.answer.length > 140
+                ? row.answer.slice(0, 137) + '...'
+                : row.answer
+            return `${idx + 1}) Q: ${row.question.trim()}\n   A: ${shortAns.trim()}`
+          })
+
+          contextText = `Here is the user's recent context from the last 30 minutes (most recent first):\n${lines.join(
+            '\n',
+          )}\n\nUse this only if it clearly helps answer the new question.`
+        }
+      } catch (e) {
+        console.error('[/ask] history fetch error:', e)
+      }
+    }
+
+    const content = []
+
+    if (contextText) {
+      content.push({
         type: 'text',
-        text: `User question: ${query}\n\nIf relevant, refer directly to the current screenshot.`,
-      },
-    ]
+        text: contextText,
+      })
+    }
+
+    content.push({
+      type: 'text',
+      text: `New user question: ${query}\n\nIf relevant, refer directly to the current screenshot.`,
+    })
 
     if (hasScreenshot) {
       content.push({
@@ -43,7 +88,6 @@ router.post('/', async (req, res) => {
 
     const answer = await global.aiProvider.chat(messages)
 
-    // For now we don't join to screenshots table; keep null
     const screenshotId = null
 
     const insert = db.prepare(`
@@ -63,7 +107,7 @@ router.post('/', async (req, res) => {
       hasScreenshot ? 1 : 0,
       global.aiProvider.provider || null,
       global.aiProvider.model || null,
-      screenshotId
+      screenshotId,
     )
 
     return res.json({
@@ -72,7 +116,9 @@ router.post('/', async (req, res) => {
     })
   } catch (err) {
     console.error('[/ask] Error:', err)
-    return res.status(500).json({ error: err.message || 'Internal server error' })
+    return res
+      .status(500)
+      .json({ error: err.message || 'Internal server error' })
   }
 })
 

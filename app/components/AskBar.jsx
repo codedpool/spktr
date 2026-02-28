@@ -9,15 +9,14 @@ export default function AskBar({ visible }) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
   const [recent, setRecent] = useState([])
+  const [useHistory, setUseHistory] = useState(true)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
-  // scroll chat to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  // focus handler for global shortcut
   useEffect(() => {
     function handleFocus() {
       if (visible) {
@@ -28,7 +27,6 @@ export default function AskBar({ visible }) {
     return () => window.removeEventListener('spktr-focus-askbar', handleFocus)
   }, [visible])
 
-  // fetch recent questions when AskBar becomes visible
   useEffect(() => {
     if (!visible) return
 
@@ -61,7 +59,11 @@ export default function AskBar({ visible }) {
       const res = await fetch(`${BACKEND_URL}/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: trimmed, includeScreenshot: true }),
+        body: JSON.stringify({
+          query: trimmed,
+          includeScreenshot: true,
+          useHistory,
+        }),
       })
       const data = await res.json()
       setMessages(prev => [
@@ -72,7 +74,6 @@ export default function AskBar({ visible }) {
         },
       ])
 
-      // refresh recent after a new question
       try {
         const histRes = await fetch(`${BACKEND_URL}/history?limit=5`)
         const histData = await histRes.json()
@@ -107,6 +108,33 @@ export default function AskBar({ visible }) {
       {/* Divider */}
       <div style={{ height: '1px', background: 'rgba(63,63,70,0.6)' }} />
 
+      {/* Context toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '11px',
+            color: '#a1a1aa',
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={useHistory}
+            onChange={e => setUseHistory(e.target.checked)}
+            style={{ margin: 0 }}
+          />
+          <span>Use recent context</span>
+        </label>
+        {useHistory && recent.length > 0 && (
+          <span style={{ fontSize: '11px', color: '#71717a' }}>
+            Using last {recent.length} questions
+          </span>
+        )}
+      </div>
+
       {/* Chat messages */}
       {messages.length > 0 && (
         <div
@@ -115,7 +143,7 @@ export default function AskBar({ visible }) {
             flexDirection: 'column',
             gap: '6px',
             overflowY: 'auto',
-            maxHeight: '220px',
+            maxHeight: '200px',
             paddingRight: '2px',
           }}
         >
@@ -229,7 +257,7 @@ export default function AskBar({ visible }) {
               overflowY: 'auto',
             }}
           >
-            {recent.map((item) => (
+            {recent.map(item => (
               <button
                 key={item.id}
                 onClick={() => handleClickRecent(item.question)}
